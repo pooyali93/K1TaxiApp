@@ -1,140 +1,252 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useBookingContext } from './BookingContext';
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  Button,
+  StyleSheet,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from "react-native";
+import PageContainer from "../components/PageContainer";
+import { useBookingContext } from "./BookingContext";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import Input from "../components/Input";
+import { COLORS } from "../constants";
 
 const EditBookingScreen = ({ route, navigation }) => {
+  const { bookings, updateBooking } = useBookingContext();
   const { bookingId } = route.params;
-  const { bookings, setBookings, handleBookingUpdate } = useBookingContext();
-
-  // Find the booking by its ID directly from the bookings array
-  const booking = bookings.find((booking) => booking.id === bookingId);
-
-  const [bookingDate, setBookingDate] = useState(new Date(booking.date));
-  const [bookingTime, setBookingTime] = useState(new Date());
-  const [pickUpAddress, setPickUpAddress] = useState(booking.pickUpAddress);
-  const [dropOffAddress, setDropOffAddress] = useState(booking.dropOffAddress);
+  const booking = bookings.find((item) => item.id === bookingId);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pickUpAddress, setPickUpAddress] = useState(booking.pickUpAddress);
+  const [dropOffAddress, setDropOffAddress] = useState(booking.dropOffAddress);
+  const [bookingDate, setBookingDate] = useState(new Date(booking.date));
+  const [bookingTime, setBookingTime] = useState(
+    getInitialBookingTime(booking.time)
+  );
+  const [pickUpAddressError, setPickUpAddressError] = useState(null);
+  const [dropOffAddressError, setDropOffAddressError] = useState(null);
+  const [userName, setUserName] = useState("Pooya");
+  const [userPhone, setUserPhone] = useState("12");
+  const [userNameError, setUserNameError] = useState(null);
+  const [userPhoneError, setUserPhoneError] = useState(null);
+
+  //const [datePickerVisible, setDatePickerVisible] = useState(datePickerVisible);
 
 
-  const handleDateChange = (event, selectedDate) => {
+
+  // Helper function to round minutes to the nearest multiple of 5
+  const roundMinutesToNearest5 = (date) => {
+    const minutes = date.getMinutes();
+    const roundedMinutes = Math.ceil(minutes / 5) * 5;
+    return new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      date.getHours(),
+      roundedMinutes
+    );
+  };
+
+  function getInitialBookingTime(timeString) {
+    const [hours, minutes] = timeString.split(":").map(Number);
+    const initialTime = new Date();
+    initialTime.setHours(hours, minutes, 0, 0);
+    return initialTime;
+  }
+
+  const handleDateChange = (selectedDate) => {
     if (selectedDate) {
-      setShowDatePicker(false);
       setBookingDate(selectedDate);
     }
+    hideDatePicker();
   };
 
-  const handleTimeChange = (event, selectedTime) => {
+  const hideDatePicker = () => {
+    setShowDatePicker(false);
+  };
+
+  const handleTimeChange = (selectedTime) => {
     if (selectedTime) {
-      setShowTimePicker(false);
-      setBookingTime(selectedTime);
+      setBookingTime(roundMinutesToNearest5(selectedTime));
+      
     }
+    hideTimePicker();
   };
 
-  const handleSave = () => {
-    console.log("edit booking: ", booking)
-    const editedBooking = {
-      ...booking,
-      date: bookingDate.toDateString(),
-      time: bookingTime.toLocaleTimeString(),
+  const hideTimePicker = () => {
+    setShowTimePicker(false);
+  };
+
+  const handleUpdateBooking = () => {
+    const updatedBooking = {
+      id: booking.id,
       pickUpAddress,
       dropOffAddress,
+      date: bookingDate.toDateString(),
+      time: bookingTime.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      riderInfo: {
+        userName: booking.riderInfo.userName,
+        userPhone: booking.riderInfo.userPhone,
+      },
     };
 
-    handleBookingUpdate(editedBooking);
-    navigation.goBack();
+    updateBooking(updatedBooking);
+    navigation.navigate("BookingList");
   };
 
- 
-
+  const handleTouchablePress = () => {
+    Keyboard.dismiss();
+  };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Pick a Date</Text>
-      <DateTimePicker
-        value={bookingDate}
-        minimumDate={new Date()}
-        mode="date"
-        display="default"
-        onChange={handleDateChange}
-      />
-      <Text style={styles.bookingDate}>Booking Date: {bookingDate.toDateString()}</Text>
+    <TouchableWithoutFeedback onPress={handleTouchablePress}>
+      <PageContainer>
+        <View style={styles.container}>
+          <Input
+            label="From"
+            value={pickUpAddress}
+            onChangeText={setPickUpAddress}
+            error={pickUpAddressError}
+          />
 
-      <Text style={styles.heading}>Choose Booking Time</Text>
-      <DateTimePicker
-        value={bookingTime}
-        mode="time"
-        display="default"
-        onChange={handleTimeChange}
-        minuteInterval={5}
-        style={{backgroundColor:'red'}}
-      />
-      <Text style={styles.bookingDate}>Pick-up Time: {bookingTime.toLocaleTimeString()}</Text>
+          <Input
+            label="To"
+            value={dropOffAddress}
+            onChangeText={setDropOffAddress}
+            error={dropOffAddressError}
+          />
 
-      <Text style={styles.heading}>Pick-up Address</Text>
-      <TextInput
-        style={styles.input}
-        onChangeText={setPickUpAddress}
-        value={pickUpAddress}
-        placeholder="Enter pick-up address"
-      />
+          <Input
+            label="Name"
+            value={userName}
+            onChangeText={setUserName}
+            error={userNameError}
+          />
 
-      <Text style={styles.heading}>Drop-off Address</Text>
-      <TextInput
-        style={styles.input}
-        onChangeText={setDropOffAddress}
-        value={dropOffAddress}
-        placeholder="Enter drop-off address"
-      />
+          <Input
+            label="Phone number"
+            value={userPhone}
+            onChangeText={setUserPhone}
+            keyboardType="numeric"
+            error={userPhoneError}
+          />
 
-      {/* Save button */}
-      <TouchableOpacity style={styles.button} onPress={handleSave}>
-        <Text style={styles.text}>Save</Text>
-      </TouchableOpacity>
-    </View>
+          <View style={styles.dateTimeWrapper}>
+            <View style={styles.dateContainer}>
+              <Text style={styles.heading}>Date</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+                <Text
+                  style={{ fontSize: 24, fontWeight: "bold", marginBottom: 20 }}
+                >
+                  {bookingDate.toLocaleDateString()}
+                </Text>
+                <DateTimePickerModal
+                  value={bookingDate}
+                  mode="date"
+                  isVisible={showDatePicker}
+                  onConfirm={handleDateChange}
+                  onCancel={hideDatePicker}
+                  style={{
+                    flex: 1,
+                  }}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.dateContainer}>
+              <Text style={styles.heading}>Time</Text>
+              <TouchableOpacity onPress={() => setShowTimePicker(true)}>
+                <Text
+                  style={{ fontSize: 24, fontWeight: "bold", marginBottom: 20 }}
+                >
+                  {bookingTime.toLocaleTimeString()}
+                </Text>
+
+                <DateTimePickerModal
+                  value={roundMinutesToNearest5(bookingTime)}
+                  mode="time"
+                  isVisible={showTimePicker}
+                  onConfirm={handleTimeChange}
+                  onCancel={hideTimePicker}
+                  minuteInterval={5}
+                  style={{
+                    flex: 1,
+                  }}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.btnContainer}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleUpdateBooking}
+            >
+              <Text style={styles.text}>Save Changes</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </PageContainer>
+    </TouchableWithoutFeedback>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width:'100%',
-    justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    backgroundColor: COLORS.lightWhite,
   },
   heading: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  bookingDate: {
     fontSize: 16,
     fontWeight: "bold",
-    borderWidth:1,
-    padding:20,
-    marginVertical:5,
-    width:'100%'
+    color: "#9FA7AA",
   },
   input: {
-    height: 40,
     width: "100%",
-    borderRadius: 5,
-    borderColor: "gray",
+    marginTop: 10,
+    color: "black",
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+  dateTimeWrapper: {
+    flexWrap: "wrap",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+  },
+
+  dateContainer: {
+    justifyContent: "center",
+    alignItems: "flex-start",
+    width: "49%",
+    height: 120,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
     borderWidth: 1,
-    marginBottom: 10,
-    paddingHorizontal: 10,
+    borderColor: "#e3e4e5",
+    borderRadius: 5,
+    marginVertical: 5,
+  },
+  btnContainer: {
+    alignItems: "center",
+    marginVertical: 10,
   },
   button: {
-    alignItems: "center",
-    justifyContent: "center",
     paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 4,
+    paddingHorizontal: 100,
+    borderRadius: 5,
     elevation: 3,
     backgroundColor: "black",
-    marginBottom: 10,
   },
   text: {
     fontSize: 16,
@@ -142,6 +254,13 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     letterSpacing: 0.25,
     color: "white",
+  },
+  error: {
+    position: "absolute",
+    left: 20,
+    bottom: 5,
+    color: "red",
+    textAlign: "center",
   },
 });
 

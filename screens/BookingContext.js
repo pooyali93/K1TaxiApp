@@ -13,10 +13,8 @@ export function BookingProvider({ children }) {
   const loadBookings = async () => {
     try {
       const bookingsData = await AsyncStorage.getItem('bookings');
-      //console.log('Loaded bookings data:', bookingsData);
       if (bookingsData !== null) {
         const parsedBookings = JSON.parse(bookingsData);
-       // console.log('Parsed bookings:', parsedBookings);
         setBookings(parsedBookings);
       }
     } catch (error) {
@@ -24,7 +22,6 @@ export function BookingProvider({ children }) {
     }
   };
   
-
   const saveBookings = async () => {
     try {
       await AsyncStorage.setItem('bookings', JSON.stringify(bookings));
@@ -33,13 +30,23 @@ export function BookingProvider({ children }) {
     }
   };
 
-  const handleBookingUpdate = (editedBookings) => {
-    setBookings(editedBookings);
-    saveBookings(); // Save the updated bookings
+  const updateBooking = (updatedBooking) => {
+    // Find the index of the booking with the same ID as the updatedBooking
+    const bookingIndex = bookings.findIndex((booking) => booking.id === updatedBooking.id);
+
+    if (bookingIndex !== -1) {
+      // Replace the booking at the found index with the updated booking
+      const updatedBookings = [...bookings];
+      updatedBookings[bookingIndex] = updatedBooking;
+
+      // Update the bookings state
+      setBookings(updatedBookings);
+      saveBookings(); // Save the updated bookings
+    }
   };
 
   return (
-    <BookingContext.Provider value={{ bookings, setBookings, handleBookingUpdate }}>
+    <BookingContext.Provider value={{ bookings, setBookings, updateBooking }}>
       {children}
     </BookingContext.Provider>
   );
